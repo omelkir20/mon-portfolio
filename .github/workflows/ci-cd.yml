@@ -1,0 +1,71 @@
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (ex: v1.1). Vide = v<numéro de run>"
+        required: false
+
+env:
+  IMAGE: /portfolio-nextjs
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: 
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: |
+          TAG=""
+          [ -z "$TAG" ] && TAG="v"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install && npm run build
+
+      - uses: docker/login-action@v3
+        with:
+          username: 
+          password: 
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            :
+            :latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Déploiement
+        env:
+          IMAGE_TAG: NaN
+        run: |
+          docker compose pull
+          docker compose up -d --remove-orphans
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fs http://localhost:3000 > /dev/null; then
+              echo "OK : application disponible sur http://localhost:3000"; exit 0
+            fi
+            sleep 3
+          done
+          echo "Échec du health check"; docker compose logs; exit 1

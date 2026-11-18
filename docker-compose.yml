@@ -1,0 +1,12 @@
+services:
+  portfolio:
+    image: omelkir/portfolio-nextjs:${IMAGE_TAG:-latest}
+    container_name: mon-portfolio
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
